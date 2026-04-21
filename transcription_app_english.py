@@ -7,6 +7,7 @@ import io
 import base64
 from datetime import datetime
 import mimetypes
+from collections import Counter
 
 # Import Gemini SDK
 try:
@@ -34,6 +35,35 @@ GEMINI_MODELS = [
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
 ]
+
+def compute_bow_f1(ai_text, correct_text):
+    """Word-level F1: how much of the correct text the AI captured, regardless of order."""
+    ai_words = Counter(ai_text.lower().split())
+    correct_words = Counter(correct_text.lower().split())
+    common = sum((ai_words & correct_words).values())
+    if common == 0:
+        return 0.0
+    precision = common / sum(ai_words.values())
+    recall = common / sum(correct_words.values())
+    return round(2 * precision * recall / (precision + recall), 3)
+
+def compute_wer(ai_text, correct_text):
+    """Word Error Rate: fraction of words that are wrong (insertions + deletions + substitutions)."""
+    ref = correct_text.lower().split()
+    hyp = ai_text.lower().split()
+    if len(ref) == 0:
+        return 0.0
+    # Dynamic programming edit distance on word level
+    d = [[0] * (len(hyp) + 1) for _ in range(len(ref) + 1)]
+    for i in range(len(ref) + 1):
+        d[i][0] = i
+    for j in range(len(hyp) + 1):
+        d[0][j] = j
+    for i in range(1, len(ref) + 1):
+        for j in range(1, len(hyp) + 1):
+            cost = 0 if ref[i - 1] == hyp[j - 1] else 1
+            d[i][j] = min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + cost)
+    return round(d[len(ref)][len(hyp)] / len(ref), 3)
 
 # Initialize Gemini client
 @st.cache_resource
@@ -71,6 +101,8 @@ if "training_metadata" not in st.session_state:
     }
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = GEMINI_MODELS[0]  # Default to first model
+if "quality_scores" not in st.session_state:
+    st.session_state.quality_scores = []  # list of {"iteration": n, "bow_f1": x, "wer": x}
 
 # Get API key from secrets or user input
 try:
@@ -328,6 +360,7 @@ with st.sidebar:
             st.session_state.current_workflow_stage = "upload"
             st.session_state.current_iteration = 0
             st.session_state.training_metadata["iterations"] = 0
+            st.session_state.quality_scores = []
             st.success("Session reset!")
             st.rerun()
 
@@ -415,26 +448,37 @@ if st.session_state.app_mode == "training":
                 if correct_transcription.strip():
                     with st.spinner("Gemini is reflecting on the feedback..."):
                         try:
+                            # Compute quality scores before storing feedback
+                            bow = compute_bow_f1(st.session_state.ai_transcription, correct_transcription)
+                            wer = compute_wer(st.session_state.ai_transcription, correct_transcription)
+
                             # Create feedback message
                             feedback_prompt = f"Here is the correct transcription:\n\n{correct_transcription}\n\nCompare this with your previous transcription and explain what needed to be corrected and why. Be specific about what mistakes you made."
-                            
+
                             # Get AI's reflection
                             reflection = process_transcription(
                                 st.session_state.training_image,
                                 feedback_prompt
                             )
-                            
+
                             # Update iteration count
                             st.session_state.current_iteration += 1
                             st.session_state.training_metadata["iterations"] = st.session_state.current_iteration
-                            
+
+                            # Store quality scores
+                            st.session_state.quality_scores.append({
+                                "iteration": st.session_state.current_iteration,
+                                "bow_f1": bow,
+                                "wer": wer
+                            })
+
                             # Go back to upload stage for next iteration
                             st.session_state.current_workflow_stage = "upload"
-                            
+
                             # Clear the stored transcription
                             if "ai_transcription" in st.session_state:
                                 del st.session_state.ai_transcription
-                            
+
                             st.success(f"Training iteration {st.session_state.current_iteration} completed!")
                             st.rerun()
                             
@@ -623,6 +667,21 @@ else:  # Direct mode
                 st.session_state.bulk_transcription_results = []
                 st.session_state.bulk_transcription_completed = False
                 st.rerun()
+
+# Show quality score trend
+if st.session_state.quality_scores:
+    with st.expander("📊 Transcription Quality Over Iterations", expanded=True):
+        st.caption(
+            "**BoW F1** (Bag of Words F1, 0–1): measures word overlap between AI and correct text, ignoring order. "
+            "Higher is better. "
+            "**WER** (Word Error Rate, 0–1+): fraction of words that were wrong. "
+            "Lower is better."
+        )
+        import pandas as pd
+        scores_df = pd.DataFrame(st.session_state.quality_scores).set_index("iteration")
+        scores_df.columns = ["BoW F1 (higher=better)", "WER (lower=better)"]
+        st.line_chart(scores_df)
+        st.dataframe(scores_df)
 
 # Show training history
 with st.expander("View Training History"):
