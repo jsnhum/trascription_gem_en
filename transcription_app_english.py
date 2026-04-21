@@ -76,23 +76,13 @@ try:
 except KeyError:
     GEMINI_API_KEY = None
 
+if "user_api_key" not in st.session_state:
+    st.session_state.user_api_key = ""
+
 if not GEMINI_API_KEY:
-    if "user_api_key" not in st.session_state:
-        st.session_state.user_api_key = ""
-    with st.sidebar:
-        st.warning("No API key configured in secrets.")
-        user_key = st.text_input(
-            "Enter your Gemini API key:",
-            type="password",
-            value=st.session_state.user_api_key,
-            placeholder="AIza..."
-        )
-        if user_key:
-            st.session_state.user_api_key = user_key
-            GEMINI_API_KEY = user_key
-        else:
-            st.info("Enter a Gemini API key in the sidebar to use the app.")
-            st.stop()
+    GEMINI_API_KEY = st.session_state.user_api_key or None
+
+API_KEY_READY = bool(GEMINI_API_KEY)
 
 # Function to save training history to JSON
 def save_training_history():
@@ -235,6 +225,9 @@ def process_transcription(image, prompt, update_history=True):
 st.title("📜 Handwritten Manuscript Transcription Assistant")
 st.markdown("Use Gemini to transcribe handwritten documents with iterative training.")
 
+if not API_KEY_READY:
+    st.info("To get started, enter your Gemini API key in the sidebar. You can get one for free at [Google AI Studio](https://aistudio.google.com/app/apikey).", icon="🔑")
+
 # Sidebar for configuration
 with st.sidebar:
     st.header("⚙️ Configuration")
@@ -247,8 +240,21 @@ with st.sidebar:
         index=GEMINI_MODELS.index(st.session_state.selected_model)
     )
     
-    # Display API key status
-    st.success("✓ API key loaded from secrets")
+    # API key status
+    if API_KEY_READY:
+        st.success("✓ API key ready")
+    else:
+        st.warning("No API key configured.")
+        user_key = st.text_input(
+            "Enter your Gemini API key:",
+            type="password",
+            placeholder="AIza..."
+        )
+        if user_key:
+            st.session_state.user_api_key = user_key
+            GEMINI_API_KEY = user_key
+            API_KEY_READY = True
+            st.rerun()
     
     st.divider()
     
@@ -354,7 +360,7 @@ if st.session_state.app_mode == "training":
             )
             
             # Button to get first transcription
-            if st.button("Get AI Transcription"):
+            if st.button("Get AI Transcription", disabled=not API_KEY_READY):
                 with st.spinner("Gemini is transcribing the manuscript..."):
                     try:
                         # Get transcription from AI
@@ -403,7 +409,7 @@ if st.session_state.app_mode == "training":
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("✓ Submit Feedback and Continue Training"):
+            if st.button("✓ Submit Feedback and Continue Training", disabled=not API_KEY_READY):
                 if correct_transcription.strip():
                     with st.spinner("Gemini is reflecting on the feedback..."):
                         try:
@@ -470,7 +476,7 @@ else:  # Direct mode
             )
             
             # Button to start direct transcription
-            if st.button("Start Direct Transcription"):
+            if st.button("Start Direct Transcription", disabled=not API_KEY_READY):
                 with st.spinner("Gemini is transcribing the manuscript..."):
                     try:
                         # Get transcription from AI using all previous training
@@ -539,7 +545,7 @@ else:  # Direct mode
         )
         
         # Button to start bulk transcription
-        if uploaded_files and st.button("Start Bulk Transcription"):
+        if uploaded_files and st.button("Start Bulk Transcription", disabled=not API_KEY_READY):
             # Reset results
             st.session_state.bulk_transcription_results = []
             st.session_state.bulk_transcription_completed = False
