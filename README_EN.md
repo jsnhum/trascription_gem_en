@@ -1,28 +1,15 @@
 # Handwritten Manuscript Transcription Assistant
 
-A Streamlit application that uses Google Gemini to transcribe handwritten documents with iterative training.
+A Streamlit application that uses Google Gemini to transcribe handwritten documents.
 
 ## Features
 
-### 📚 Training Mode
-- Upload handwritten manuscripts
-- Get AI transcription from Gemini
-- Provide feedback with correct transcription
-- AI reflects and learns from mistakes
-- Save and load training sessions as JSON
-
-### ⚡ Direct Transcription
 - **Single page**: Transcribe one page at a time
-- **Bulk transcription**: Process multiple pages simultaneously
-- Uses all previous training for better results
-- Export results as CSV
-
-### 🎯 Model Selection
-Choose from four Gemini models:
-- `gemini-3-pro-preview` - Most powerful
-- `gemini-3-flash-preview` - Fast performance
-- `gemini-2.5-flash` - Balanced
-- `gemini-2.5-pro` - Optimized precision
+- **Bulk transcription**: Process multiple pages in one go and export results as CSV
+- **Editable prompt**: Adjust the instructions sent to Gemini
+- **Model selection**: Choose among all Gemini models that support image input
+  (Gemini 4, 3.x Pro/Flash/Flash-Lite, 2.5 Pro/Flash/Flash-Lite, and the
+  `-latest` aliases). Default: `gemini-3.1-pro-preview`.
 
 ## Installation
 
@@ -57,25 +44,11 @@ Choose from four Gemini models:
 
 ## Usage
 
-### Training Mode
-
-1. Select "Training Mode" in the sidebar
-2. Upload an image of a handwritten manuscript
-3. Click "Get AI Transcription"
-4. Review the result and enter the correct transcription
-5. AI reflects and learns
-6. Repeat to improve accuracy
-
-**Tip**: Save your training session regularly via "Download Training History"
-
-### Direct Transcription
-
-1. Train the app first (recommended)
-2. Select "Direct Transcription" in the sidebar
-3. Choose between single page or bulk transcription
-4. Upload image(s)
-5. Click "Start Direct Transcription"
-6. Export results if bulk
+1. Choose a model in the sidebar
+2. Choose "Single page" or "Bulk transcription (multiple pages)"
+3. Upload image(s) and adjust the prompt if needed
+4. Click "Start Transcription" / "Start Bulk Transcription"
+5. For bulk, download the results as CSV
 
 ## Deployment
 
