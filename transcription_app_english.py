@@ -87,6 +87,14 @@ DEFAULT_PROMPT = (
     "Read line by line, word by word. Return only the transcription, nothing else!"
 )
 
+# Fixed instruction sent with every request, regardless of the editable prompt.
+SYSTEM_INSTRUCTION = (
+    "You are a transcription engine. Output ONLY the transcribed text from the image, "
+    "exactly as it appears, line by line. Do not add any introduction, title, headings, "
+    "explanations, notes, comments, descriptions of the document, line numbers, "
+    "markdown formatting or code blocks. Your entire response must be the transcription itself."
+)
+
 
 @st.cache_resource
 def get_gemini_client(_api_key):
@@ -109,6 +117,7 @@ def process_transcription(image, prompt):
             types.Part.from_bytes(data=image_to_bytes(image), mime_type="image/png"),
             types.Part.from_text(text=prompt),
         ],
+        config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION),
     )
     return response.text
 
