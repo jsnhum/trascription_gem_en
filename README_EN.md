@@ -7,9 +7,12 @@ A Streamlit application that uses Google Gemini to transcribe handwritten docume
 - **Single page**: Transcribe one page at a time
 - **Bulk transcription**: Process multiple pages in one go and export results as CSV
 - **Editable prompt**: Adjust the instructions sent to Gemini
-- **Model selection**: Choose among all Gemini models that support image input
-  (Gemini 4, 3.x Pro/Flash/Flash-Lite, 2.5 Pro/Flash/Flash-Lite, and the
-  `-latest` aliases). Default: `gemini-3.1-pro-preview`.
+- **Model selection**: No default model; choose one before transcribing.
+  The list is fetched live from the Gemini API (refreshed every 24 h), so new
+  Flash and Flash-Lite models appear automatically. The most expensive models
+  (output >= $10 per 1M tokens: all Pro models and Gemini 4 Argon/Carbon/Neon)
+  are excluded. Other new model families must be added to `EXTRA_MODELS` in the
+  code after checking their price.
 
 ## Installation
 
