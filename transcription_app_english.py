@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import pandas as pd
 import re
@@ -102,6 +102,14 @@ def get_gemini_client(_api_key):
     return genai.Client(api_key=_api_key)
 
 
+def load_image(uploaded_file):
+    """Open an uploaded image, applying the EXIF rotation that phone cameras store."""
+    img = ImageOps.exif_transpose(Image.open(uploaded_file))
+    if img.mode not in ("RGB", "RGBA", "L"):
+        img = img.convert("RGB")
+    return img
+
+
 def image_to_bytes(img):
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
@@ -117,7 +125,11 @@ def process_transcription(image, prompt):
             types.Part.from_bytes(data=image_to_bytes(image), mime_type="image/png"),
             types.Part.from_text(text=prompt),
         ],
-        config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION),
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_INSTRUCTION,
+            # Read the image in more detail (better for small or faint handwriting)
+            media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH,
+        ),
     )
     return response.text
 
@@ -212,7 +224,7 @@ if st.session_state.mode_type == "Single page":
     )
 
     if uploaded_file is not None:
-        image = Image.open(uploaded_file)
+        image = load_image(uploaded_file)
         st.image(image, caption="Uploaded image", use_column_width=True)
 
         prompt = st.text_area(
@@ -271,7 +283,7 @@ else:  # Bulk transcription mode
             progress_bar.progress(int(100 * i / len(uploaded_files)))
             status_text.text(f"Transcribing file {i+1} of {len(uploaded_files)}: {uploaded_file.name}")
             try:
-                transcription = process_transcription(Image.open(uploaded_file), bulk_prompt)
+                transcription = process_transcription(load_image(uploaded_file), bulk_prompt)
             except Exception as e:
                 transcription = f"ERROR: {str(e)}"
             results.append({"filename": uploaded_file.name, "transcription": transcription})
