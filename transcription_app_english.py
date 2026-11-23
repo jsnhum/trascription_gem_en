@@ -4,6 +4,7 @@ import io
 import pandas as pd
 import re
 import hashlib
+import hmac
 
 # Import Gemini SDK
 try:
@@ -19,6 +20,48 @@ st.set_page_config(
     page_icon="📜",
     layout="wide"
 )
+
+# --- Password protection ----------------------------------------------------
+# APP_PASSWORD and CONTACT_EMAIL are read from Streamlit secrets, so neither is
+# stored in the code on GitHub. If APP_PASSWORD is not set (e.g. when running
+# locally), the app opens without a password.
+def check_password():
+    """Show a login form until the correct password is entered."""
+    if st.session_state.get("authenticated"):
+        return
+
+    try:
+        app_password = st.secrets.get("APP_PASSWORD")
+        contact_email = st.secrets.get("CONTACT_EMAIL")
+    except Exception:  # no secrets file at all
+        app_password = contact_email = None
+
+    if not app_password:
+        return
+
+    st.title("📜 Handwritten Manuscript Transcription Assistant")
+    st.markdown("This app is password protected.")
+    if contact_email:
+        st.info(
+            f"To request a password, please email [{contact_email}](mailto:{contact_email}).",
+            icon="✉️",
+        )
+
+    with st.form("login"):
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Log in")
+
+    if submitted:
+        if hmac.compare_digest(password.encode(), str(app_password).encode()):
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+
+    st.stop()
+
+
+check_password()
 
 # --- Model list -------------------------------------------------------------
 # The list is fetched live from the Gemini API (cached for 24 h), so new models
